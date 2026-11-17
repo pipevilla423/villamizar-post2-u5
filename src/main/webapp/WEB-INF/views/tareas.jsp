@@ -1,13 +1,13 @@
 
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Gestión de Tareas</title>
-
     <link rel="stylesheet"
           href="${pageContext.request.contextPath}/css/estilos.css">
 </head>
@@ -15,69 +15,87 @@
 
     <h1>Lista de Tareas</h1>
 
-    <!-- Saludo del usuario identificado -->
-    <c:if test="${not empty sessionScope.usuario}">
-        <p class="saludo">
-            Bienvenido, <c:out value="${sessionScope.usuario}"/>.
+    <!-- Saludo de sesión -->
+    <c:choose>
+        <c:when test="${not empty sessionScope.usuario}">
+            <p class="saludo">
+                Hola, <c:out value="${sessionScope.usuario}"/>
+            </p>
+        </c:when>
+
+        <c:otherwise>
+            <form method="post"
+                  action="${pageContext.request.contextPath}/tareas">
+
+                <input type="hidden"
+                       name="accion"
+                       value="identificar">
+
+                <input type="text"
+                       name="nombre"
+                       placeholder="¿Cómo te llamas?"
+                       required>
+
+                <button type="submit">Identificarme</button>
+            </form>
+        </c:otherwise>
+    </c:choose>
+
+    <!-- Mensajes de error -->
+    <c:if test="${not empty error}">
+        <p class="error">
+            <c:out value="${error}"/>
         </p>
     </c:if>
 
-    <!-- Formulario para identificar usuario -->
-    <form action="${pageContext.request.contextPath}/tareas"
-          method="post">
+    <c:if test="${param.error == 'no-encontrada'}">
+        <p class="error">
+            La tarea solicitada no existe.
+        </p>
+    </c:if>
 
-        <input type="hidden" name="accion" value="identificar">
+    <c:if test="${param.error == 'id-invalido'}">
+        <p class="error">
+            El identificador de la tarea no es válido.
+        </p>
+    </c:if>
 
-        <input type="text"
-               name="nombre"
-               placeholder="Escribe tu nombre"
-               required>
-
-        <button type="submit">Identificarme</button>
-    </form>
-
-    <hr>
-
-    <h2>Filtrar tareas</h2>
-
-    <!-- Filtros combinados -->
-    <form action="${pageContext.request.contextPath}/tareas"
-          method="get"
+    <!-- Filtro combinado -->
+    <form method="get"
+          action="${pageContext.request.contextPath}/tareas"
           class="filtro">
 
         <input type="text"
                name="q"
-               placeholder="Buscar tarea"
-               value="<c:out value='${filtroTexto}'/>">
+               value="<c:out value='${filtroTexto}'/>"
+               placeholder="Buscar por título...">
 
         <select name="cat">
             <option value="">Todas las categorías</option>
 
-            <c:forEach var="categoria" items="${categorias}">
-                <option value="${categoria}"
-                    <c:if test="${categoria eq filtroCategoria}">
-                        selected
-                    </c:if>>
-                    <c:out value="${categoria}"/>
+            <c:forEach var="cat" items="${categorias}">
+                <option value="<c:out value='${cat}'/>"
+                    ${cat == filtroCategoria ? 'selected' : ''}>
+                    <c:out value="${cat}"/>
                 </option>
             </c:forEach>
         </select>
 
         <select name="prioridad">
-            <option value="">Todas las prioridades</option>
+            <option value="">Cualquier prioridad</option>
 
             <option value="Alta"
-                ${filtroPrioridad eq 'Alta' ? 'selected' : ''}>
+                ${filtroPrioridad == 'Alta' ? 'selected' : ''}>
                 Alta
             </option>
 
             <option value="Media"
-                ${filtroPrioridad eq 'Media' ? 'selected' : ''}>
+                ${filtroPrioridad == 'Media' ? 'selected' : ''}>
                 Media
             </option>
 
             <option value="Baja"
-                ${filtroPrioridad eq 'Baja' ? 'selected' : ''}>
+                ${filtroPrioridad == 'Baja' ? 'selected' : ''}>
                 Baja
             </option>
         </select>
@@ -85,42 +103,35 @@
         <button type="submit">Filtrar</button>
     </form>
 
-    <hr>
+    <p>${fn:length(tareas)} tarea(s) encontrada(s)</p>
 
-    <h2>Agregar nueva tarea</h2>
+    <!-- Formulario agregar tarea -->
+    <form method="post"
+          action="${pageContext.request.contextPath}/tareas">
 
-    <!-- Mensaje de validación -->
-    <c:if test="${not empty error}">
-        <p class="error">
-            <c:out value="${error}"/>
-        </p>
-    </c:if>
-
-    <!-- Formulario para agregar tareas -->
-    <form action="${pageContext.request.contextPath}/tareas"
-          method="post">
-
-        <input type="hidden" name="accion" value="agregar">
+        <input type="hidden"
+               name="accion"
+               value="agregar">
 
         <input type="text"
                name="titulo"
-               placeholder="Título de la tarea">
+               placeholder="Nueva tarea..."
+               required>
 
         <button type="submit">Agregar</button>
     </form>
 
-    <h2>Tareas registradas</h2>
-
-    <!-- Lista de tareas -->
+    <!-- Tabla de tareas -->
     <table>
         <thead>
             <tr>
-                <th>ID</th>
+                <th>#</th>
                 <th>Título</th>
                 <th>Categoría</th>
                 <th>Prioridad</th>
                 <th>Estado</th>
-                <th>Acciones</th>
+                <th>Detalle</th>
+                <th>Acción</th>
             </tr>
         </thead>
 
@@ -130,9 +141,7 @@
                     <td>${t.id}</td>
 
                     <td class="${t.completada ? 'completada' : ''}">
-                        <a href="${pageContext.request.contextPath}/tareas/detalle?id=${t.id}">
-                            <c:out value="${t.titulo}"/>
-                        </a>
+                        <c:out value="${t.titulo}"/>
                     </td>
 
                     <td>
@@ -144,37 +153,18 @@
                     </td>
 
                     <td>
-                        <c:choose>
-                            <c:when test="${t.completada}">
-                                Completada
-                            </c:when>
-                            <c:otherwise>
-                                Pendiente
-                            </c:otherwise>
-                        </c:choose>
+                        ${t.completada ? 'Completada' : 'Pendiente'}
                     </td>
 
                     <td>
-                        <c:if test="${not t.completada}">
-                            <form action="${pageContext.request.contextPath}/tareas"
-                                  method="post">
+                        <a href="${pageContext.request.contextPath}/tareas/detalle?id=${t.id}">
+                            Ver
+                        </a>
+                    </td>
 
-                                <input type="hidden"
-                                       name="accion"
-                                       value="completar">
-
-                                <input type="hidden"
-                                       name="id"
-                                       value="${t.id}">
-
-                                <button type="submit">
-                                    Completar
-                                </button>
-                            </form>
-                        </c:if>
-
-                        <form action="${pageContext.request.contextPath}/tareas"
-                              method="post">
+                    <td>
+                        <form method="post"
+                              action="${pageContext.request.contextPath}/tareas">
 
                             <input type="hidden"
                                    name="accion"
@@ -184,19 +174,13 @@
                                    name="id"
                                    value="${t.id}">
 
-                            <button type="submit">
-                                Eliminar
-                            </button>
+                            <button type="submit">Eliminar</button>
                         </form>
                     </td>
                 </tr>
             </c:forEach>
         </tbody>
     </table>
-
-    <c:if test="${empty tareas}">
-        <p>No se encontraron tareas con los filtros seleccionados.</p>
-    </c:if>
 
 </body>
 </html>
